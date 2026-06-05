@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPA · CRM</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a18;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px;border:0.5px solid #ccc;border-radius:6px;padding:7px 10px;outline:none;background:#fff;color:#1a1a18;width:100%}
+input:focus,select:focus,textarea:focus{border-color:#888}
+textarea{resize:vertical}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:200px;background:#fff;border-right:0.5px solid #e0e0d8;padding:1rem 0;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-logo{padding:.75rem 1.25rem 1rem;font-size:15px;font-weight:600;color:#1a1a18;border-bottom:0.5px solid #e0e0d8;margin-bottom:.5rem}
+.sidebar-logo span{color:#888;font-weight:400;font-size:13px;display:block}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 1.25rem;font-size:13px;color:#555;cursor:pointer;border-left:2px solid transparent}
+.nav-item:hover{background:#f5f5f3;color:#1a1a18}
+.nav-item.active{color:#1a1a18;font-weight:500;border-left-color:#1a1a18;background:#f5f5f3}
+.nav-icon{font-size:16px;width:18px;text-align:center}
+.main{flex:1;overflow-y:auto}
+.topbar{background:#fff;border-bottom:0.5px solid #e0e0d8;padding:.875rem 1.5rem;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.topbar-title{font-size:15px;font-weight:500;flex:1}
+.content{padding:1.5rem}
+
+/* Buttons */
+.btn{border:0.5px solid #ccc;background:#fff;border-radius:6px;padding:7px 14px;font-size:13px;color:#1a1a18;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:#f5f5f3}
+.btn-primary{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.btn-primary:hover{background:#333}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-icon{border:none;background:none;padding:4px 6px;color:#888;border-radius:4px;font-size:15px}
+.btn-icon:hover{background:#f0f0ee;color:#1a1a18}
+
+/* Cards y métricas */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.5rem}
+.metric{background:#fff;border:0.5px solid #e0e0d8;border-radius:8px;padding:.875rem 1rem}
+.metric-label{font-size:11px;color:#888;margin-bottom:4px}
+.metric-val{font-size:22px;font-weight:500}
+.card{background:#fff;border:0.5px solid #e0e0d8;border-radius:10px;overflow:hidden}
+.card-header{padding:.875rem 1rem;border-bottom:0.5px solid #e0e0d8;display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:500}
+
+/* Pipeline */
+.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:1.5rem}
+.pipe-col{background:#f5f5f3;border-radius:8px;padding:10px}
+.pipe-col-title{font-size:11px;font-weight:500;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+.pipe-card{background:#fff;border:0.5px solid #e0e0d8;border-radius:6px;padding:8px;margin-bottom:6px;cursor:pointer;transition:border-color .15s}
+.pipe-card:hover{border-color:#aaa}
+.pipe-card-name{font-size:12px;font-weight:500;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pipe-card-sub{font-size:11px;color:#888}
+.pipe-card-amount{font-size:11px;font-weight:500;margin-top:4px}
+
+/* Tabla */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:#888;font-weight:500;border-bottom:0.5px solid #e0e0d8;font-size:11px;white-space:nowrap}
+td{padding:9px 10px;border-bottom:0.5px solid #f0f0ee;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr.clickable:hover td{background:#fafaf8;cursor:pointer}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.b-prospecto{background:#D3D1C7;color:#444441}
+.b-cualificado{background:#B5D4F4;color:#0C447C}
+.b-propuesta{background:#FAC775;color:#633806}
+.b-negociacion{background:#F5C4B3;color:#712B13}
+.b-ganado{background:#C0DD97;color:#27500A}
+.b-perdido{background:#F7C1C1;color:#791F1F}
+.overdue{color:#E24B4A}
+
+/* Ficha */
+.ficha-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:1.25rem}
+.avatar{width:44px;height:44px;border-radius:50%;background:#e6f1fb;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:15px;color:#185FA5;flex-shrink:0}
+.ficha-name{font-size:20px;font-weight:500}
+.ficha-sub{font-size:13px;color:#888;margin-top:2px}
+.ficha-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+.info-card{background:#fff;border:0.5px solid #e0e0d8;border-radius:10px;padding:1rem}
+.info-card-title{font-size:11px;font-weight:500;color:#888;margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
+.field-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:0.5px solid #f0f0ee}
+.field-row:last-child{border-bottom:none}
+.field-label{font-size:12px;color:#888}
+.field-val{font-size:12px;font-weight:500;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Secciones ficha */
+.section{background:#fff;border:0.5px solid #e0e0d8;border-radius:10px;padding:1rem;margin-bottom:1rem}
+.section-title{font-size:13px;font-weight:500;margin-bottom:.875rem}
+.add-form{background:#f5f5f3;border-radius:6px;padding:10px;margin-bottom:10px}
+.form-grid-2{display:grid;grid-template-columns:1fr 140px;gap:8px;margin-bottom:8px;align-items:end}
+.form-grid-3{display:grid;grid-template-columns:130px 1fr 130px;gap:8px;margin-bottom:8px;align-items:end}
+.form-label{font-size:11px;color:#888;margin-bottom:3px}
+.form-actions{display:flex;justify-content:flex-end}
+
+/* Log */
+.log-entry{display:flex;gap:10px;padding:9px 0;border-bottom:0.5px solid #f0f0ee}
+.log-entry:last-child{border-bottom:none}
+.log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.dot-reunion{background:#378ADD}.dot-llamada{background:#1D9E75}.dot-email{background:#BA7517}
+.dot-acuerdo{background:#534AB7}.dot-tarea{background:#888}
+.log-text{font-size:13px;line-height:1.4}
+.log-meta{font-size:11px;color:#888;margin-top:2px}
+.log-pill{font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0ee;margin-right:4px}
+
+/* Siguientes */
+.sig-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:0.5px solid #f0f0ee}
+.sig-item:last-child{border-bottom:none}
+.sig-check{width:16px;height:16px;border:0.5px solid #ccc;border-radius:3px;cursor:pointer;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:10px;background:#fff}
+.sig-check.done{background:#eaf3de;border-color:#639922;color:#3B6D11}
+.sig-text{font-size:13px;flex:1}
+.sig-text.done{text-decoration:line-through;color:#888}
+.sig-date{font-size:11px;color:#888;white-space:nowrap}
+.completed-label{font-size:11px;color:#888;font-weight:500;margin:8px 0 4px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem}
+.modal{background:#fff;border-radius:12px;padding:1.25rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:500;margin-bottom:1rem}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fr{margin-bottom:10px}
+.fr label{display:block;font-size:11px;color:#888;margin-bottom:3px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem}
+
+/* Estados */
+.empty{text-align:center;padding:2rem;color:#888;font-size:13px}
+.loading{text-align:center;padding:2rem;color:#888;font-size:13px}
+.hidden{display:none!important}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#1a1a18;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .3s;z-index:200}
+.toast.show{opacity:1}
+.back-btn{background:none;border:none;color:#888;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;margin-bottom:.875rem;padding:0}
+.back-btn:hover{color:#1a1a18}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">MPA <span>CRM Comercial</span></div>
+    <div class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard">
+      <span class="nav-icon">◎</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showView('proyectos')" id="nav-proyectos">
+      <span class="nav-icon">☰</span> Proyectos
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <button class="btn btn-primary" onclick="openModal()" id="btn-nuevo">+ Nuevo proyecto</button>
+    </div>
+    <div class="content">
+
+      <!-- Dashboard -->
+      <div id="view-dashboard">
+        <div class="metrics" id="metrics"></div>
+        <div style="font-size:12px;font-weight:500;color:#888;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Pipeline</div>
+        <div class="pipeline" id="pipeline"></div>
+        <div style="font-size:12px;font-weight:500;color:#888;margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Acciones próximas</div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th style="width:25%">Cliente</th><th style="width:14%">Fase</th>
+                <th style="width:30%">Próxima acción</th><th style="width:12%">Fecha</th><th style="width:12%">Fabricante</th>
+              </tr></thead>
+              <tbody id="proximas-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proyectos lista -->
+      <div id="view-proyectos" class="hidden">
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th style="width:22%">Cliente</th><th style="width:12%">Fase</th><th style="width:11%">Importe</th>
+                <th style="width:20%">Próxima acción</th><th style="width:10%">Fecha</th>
+                <th style="width:13%">Contacto</th><th style="width:9%">Fabricante</th><th style="width:3%"></th>
+              </tr></thead>
+              <tbody id="proj-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ficha proyecto -->
+      <div id="view-ficha" class="hidden">
+        <button class="back-btn" onclick="showView('proyectos')">← Proyectos</button>
+        <div id="ficha-content"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal proyecto -->
+<div class="modal-overlay hidden" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Nuevo proyecto</div>
+    <div class="fg">
+      <div class="fr"><label>Cliente *</label><input type="text" id="f-cliente" placeholder="Ej: Windar Renovables"></div>
+      <div class="fr"><label>Fase</label>
+        <select id="f-fase">
+          <option value="prospecto">Prospecto</option><option value="cualificado">Cualificado</option>
+          <option value="propuesta">Propuesta enviada</option><option value="negociacion">Negociación</option>
+          <option value="ganado">Ganado</option><option value="perdido">Perdido</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>Fabricante</label>
+        <select id="f-fab"><option value="">—</option><option>Blastman</option><option>CleanLaser</option><option>Nordbo Robotics</option><option>Otro</option></select>
+      </div>
+      <div class="fr"><label>Sector</label>
+        <select id="f-sector"><option value="">—</option><option>Eólico</option><option>Ferroviario</option><option>Automoción</option><option>Naval</option><option>Anticorrosión</option><option>Defensa</option><option>Otro</option></select>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>Importe estimado (€)</label><input type="number" id="f-importe" placeholder="0"></div>
+      <div class="fr"><label>País</label><input type="text" id="f-pais" placeholder="España, Polonia..."></div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>Contacto principal</label><input type="text" id="f-ctc" placeholder="Nombre"></div>
+      <div class="fr"><label>Cargo</label><input type="text" id="f-cargo" placeholder="Cargo / rol"></div>
+    </div>
+    <div class="fg">
+      <div class="fr"><label>Email</label><input type="email" id="f-email" placeholder="email@empresa.com"></div>
+      <div class="fr"><label>Teléfono</label><input type="text" id="f-tel" placeholder="+34..."></div>
+    </div>
+    <div class="fr"><label>Próxima acción</label><input type="text" id="f-accion" placeholder="Ej: Enviar oferta técnica"></div>
+    <div class="fg">
+      <div class="fr"><label>Fecha próxima acción</label><input type="date" id="f-fecha"></div>
+      <div class="fr"><label>Notas</label><input type="text" id="f-notas" placeholder="Contexto inicial..."></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProject()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://yldanecomawprxtuvcaz.supabase.co';
+const SUPABASE_KEY='sb_publishable_OmTF9vaoZc097u4TGQKa4g_JZJN1ghq';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const FASES={prospecto:'Prospecto',cualificado:'Cualificado',propuesta:'Propuesta',negociacion:'Negociación',ganado:'Ganado',perdido:'Perdido'};
+const LOG_TYPES={reunion:'Reunión',llamada:'Llamada',email:'Email',acuerdo:'Acuerdo',tarea:'Tarea'};
+const PIPE_COLS=['prospecto','cualificado','propuesta','negociacion','ganado'];
+
+let proyectos=[];
+let editingId=null;
+let fichaId=null;
+let currentView='dashboard';
+
+function fmt(n){if(!n)return'—';return new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}
+function isOverdue(d){if(!d)return false;return new Date(d)<new Date(new Date().toDateString());}
+function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'2-digit'});}
+function initials(n){if(!n)return'?';const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+function today(){return new Date().toISOString().split('T')[0];}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg||'Guardado';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function showView(v){
+  ['dashboard','proyectos','ficha'].forEach(x=>{
+    document.getElementById('view-'+x).classList.toggle('hidden',x!==v);
+  });
+  ['dashboard','proyectos'].forEach(x=>{
+    document.getElementById('nav-'+x)?.classList.toggle('active',x===v);
+  });
+  const titles={dashboard:'Dashboard',proyectos:'Proyectos',ficha:'Ficha de proyecto'};
+  document.getElementById('topbar-title').textContent=titles[v]||'';
+  currentView=v;
+  if(v==='dashboard')renderDashboard();
+  if(v==='proyectos')renderTable();
+}
+
+async function loadProyectos(){
+  const{data,error}=await sb.from('proyectos').select('*').order('created_at',{ascending:false});
+  if(error){showToast('Error cargando datos');return;}
+  proyectos=data||[];
+  renderDashboard();
+}
+
+function renderDashboard(){
+  const active=proyectos.filter(p=>!['ganado','perdido'].includes(p.fase));
+  const pipeline=active.reduce((s,p)=>s+(p.importe||0),0);
+  const overdue=active.filter(p=>isOverdue(p.proxima_fecha)).length;
+  const ganados=proyectos.filter(p=>p.fase==='ganado').length;
+
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Proyectos activos</div><div class="metric-val">${active.length}</div></div>
+    <div class="metric"><div class="metric-label">Pipeline estimado</div><div class="metric-val" style="font-size:16px">${fmt(pipeline)}</div></div>
+    <div class="metric"><div class="metric-label">Acciones vencidas</div><div class="metric-val" style="color:${overdue>0?'#E24B4A':'inherit'}">${overdue}</div></div>
+    <div class="metric"><div class="metric-label">Ganados</div><div class="metric-val" style="color:#3B6D11">${ganados}</div></div>`;
+
+  document.getElementById('pipeline').innerHTML=PIPE_COLS.map(fase=>{
+    const cols=proyectos.filter(p=>p.fase===fase);
+    return`<div class="pipe-col">
+      <div class="pipe-col-title">${FASES[fase]} <span style="opacity:.5">${cols.length}</span></div>
+      ${cols.map(p=>`<div class="pipe-card" onclick="showFicha(${p.id})">
+        <div class="pipe-card-name">${p.cliente}</div>
+        <div class="pipe-card-sub">${p.fabricante||'—'}</div>
+        <div class="pipe-card-amount">${fmt(p.importe)}</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  const proximas=proyectos.filter(p=>!['ganado','perdido'].includes(p.fase)&&p.proxima_accion)
+    .sort((a,b)=>new Date(a.proxima_fecha||'9999')-new Date(b.proxima_fecha||'9999')).slice(0,8);
+  document.getElementById('proximas-table').innerHTML=proximas.map(p=>`
+    <tr class="clickable" onclick="showFicha(${p.id})">
+      <td style="font-weight:500">${p.cliente}</td>
+      <td><span class="badge b-${p.fase}">${FASES[p.fase]}</span></td>
+      <td>${p.proxima_accion||'—'}</td>
+      <td class="${isOverdue(p.proxima_fecha)?'overdue':''}">${fmtDate(p.proxima_fecha)}</td>
+      <td style="color:#888">${p.fabricante||'—'}</td>
+    </tr>`).join('');
+}
+
+function renderTable(){
+  document.getElementById('proj-table').innerHTML=proyectos.map(p=>`
+    <tr class="clickable" onclick="showFicha(${p.id})">
+      <td style="font-weight:500">${p.cliente}</td>
+      <td><span class="badge b-${p.fase}">${FASES[p.fase]}</span></td>
+      <td style="font-weight:500">${fmt(p.importe)}</td>
+      <td>${p.proxima_accion||'—'}</td>
+      <td class="${isOverdue(p.proxima_fecha)?'overdue':''}">${fmtDate(p.proxima_fecha)}</td>
+      <td>${p.contacto_nombre||'—'}</td>
+      <td style="color:#888">${p.fabricante||'—'}</td>
+      <td><button class="btn-icon" onclick="event.stopPropagation();deleteProject(${p.id})" title="Eliminar">🗑</button></td>
+    </tr>`).join('');
+}
+
+async function showFicha(id){
+  fichaId=id;
+  showView('ficha');
+  document.getElementById('ficha-content').innerHTML=`<div class="loading">Cargando...</div>`;
+  const p=proyectos.find(x=>x.id===id);
+  const [{data:logs},{data:sigs}]=await Promise.all([
+    sb.from('actividad').select('*').eq('proyecto_id',id).order('fecha',{ascending:false}),
+    sb.from('siguientes_pasos').select('*').eq('proyecto_id',id).order('fecha',{ascending:true})
+  ]);
+  renderFicha(p,logs||[],sigs||[]);
+}
+
+function renderFicha(p,logs,sigs){
+  const sigPend=sigs.filter(s=>!s.done);
+  const sigDone=sigs.filter(s=>s.done);
+  document.getElementById('ficha-content').innerHTML=`
+    <div class="ficha-header">
+      <div class="avatar">${initials(p.cliente)}</div>
+      <div style="flex:1">
+        <div class="ficha-name">${p.cliente}</div>
+        <div class="ficha-sub">${[p.fabricante,p.sector,p.pais].filter(Boolean).join(' · ')}</div>
+      </div>
+      <span class="badge b-${p.fase}" style="margin-right:8px">${FASES[p.fase]}</span>
+      <button class="btn" onclick="openModal(${p.id})">✏ Editar</button>
+    </div>
+
+    <div class="ficha-grid">
+      <div class="info-card">
+        <div class="info-card-title">Proyecto</div>
+        <div class="field-row"><span class="field-label">Importe estimado</span><span class="field-val">${fmt(p.importe)}</span></div>
+        <div class="field-row"><span class="field-label">Fabricante</span><span class="field-val">${p.fabricante||'—'}</span></div>
+        <div class="field-row"><span class="field-label">Sector</span><span class="field-val">${p.sector||'—'}</span></div>
+        <div class="field-row"><span class="field-label">País</span><span class="field-val">${p.pais||'—'}</span></div>
+        <div class="field-row"><span class="field-label">Notas</span><span class="field-val">${p.notas||'—'}</span></div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">Contacto principal</div>
+        <div class="field-row"><span class="field-label">Nombre</span><span class="field-val">${p.contacto_nombre||'—'}</span></div>
+        <div class="field-row"><span class="field-label">Cargo</span><span class="field-val">${p.contacto_cargo||'—'}</span></div>
+        <div class="field-row"><span class="field-label">Email</span><span class="field-val" style="color:#185FA5">${p.contacto_email||'—'}</span></div>
+        <div class="field-row"><span class="field-label">Teléfono</span><span class="field-val">${p.contacto_tel||'—'}</span></div>
+        <div class="field-row"><span class="field-label">Próxima acción</span><span class="field-val">${p.proxima_accion||'—'}</span></div>
+        <div class="field-row"><span class="field-label">Fecha</span><span class="field-val ${isOverdue(p.proxima_fecha)?'overdue':''}">${fmtDate(p.proxima_fecha)}</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Siguientes pasos</div>
+      <div class="add-form">
+        <div class="form-grid-2">
+          <div><div class="form-label">Descripción</div><input type="text" id="sig-texto" placeholder="Ej: Llamar a compras, enviar especificación..."></div>
+          <div><div class="form-label">Fecha límite</div><input type="date" id="sig-fecha"></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary btn-sm" onclick="addSig(${p.id})">+ Añadir paso</button></div>
+      </div>
+      ${sigPend.length===0&&sigDone.length===0?`<div style="font-size:12px;color:#888;padding:4px 0">Sin pasos pendientes.</div>`:''}
+      ${sigPend.map(s=>`
+        <div class="sig-item">
+          <div class="sig-check" onclick="toggleSig(${p.id},${s.id},${s.done})"></div>
+          <div style="flex:1"><div class="sig-text">${s.texto}</div>${s.fecha?`<div class="sig-date ${isOverdue(s.fecha)?'overdue':''}">${isOverdue(s.fecha)?'⚠ ':''}${fmtDate(s.fecha)}</div>`:''}</div>
+          <button class="btn-icon" onclick="deleteSig(${p.id},${s.id})">✕</button>
+        </div>`).join('')}
+      ${sigDone.length>0?`<div class="completed-label">Completados</div>`:''}
+      ${sigDone.map(s=>`
+        <div class="sig-item">
+          <div class="sig-check done" onclick="toggleSig(${p.id},${s.id},${s.done})">✓</div>
+          <div style="flex:1"><div class="sig-text done">${s.texto}</div></div>
+          <button class="btn-icon" onclick="deleteSig(${p.id},${s.id})">✕</button>
+        </div>`).join('')}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Actividad</div>
+      <div class="add-form">
+        <div class="form-grid-3">
+          <div><div class="form-label">Tipo</div>
+            <select id="log-tipo">
+              <option value="reunion">Reunión</option><option value="llamada">Llamada</option>
+              <option value="email">Email</option><option value="acuerdo">Acuerdo</option><option value="tarea">Tarea</option>
+            </select>
+          </div>
+          <div><div class="form-label">Descripción</div><input type="text" id="log-texto" placeholder="Qué ocurrió, qué se acordó..."></div>
+          <div><div class="form-label">Fecha</div><input type="date" id="log-fecha" value="${today()}"></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary btn-sm" onclick="addLog(${p.id})">+ Registrar</button></div>
+      </div>
+      ${logs.length===0?`<div style="font-size:12px;color:#888;padding:4px 0">Sin actividad registrada.</div>`:''}
+      ${logs.map(l=>`
+        <div class="log-entry">
+          <div class="log-dot dot-${l.tipo}"></div>
+          <div style="flex:1">
+            <div class="log-text">${l.texto}</div>
+            <div class="log-meta"><span class="log-pill">${LOG_TYPES[l.tipo]||l.tipo}</span>${fmtDate(l.fecha)}</div>
+          </div>
+          <button class="btn-icon" onclick="deleteLog(${p.id},${l.id})">✕</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function addLog(pid){
+  const tipo=document.getElementById('log-tipo').value;
+  const texto=document.getElementById('log-texto').value.trim();
+  const fecha=document.getElementById('log-fecha').value;
+  if(!texto)return document.getElementById('log-texto').focus();
+  const{error}=await sb.from('actividad').insert({proyecto_id:pid,tipo,texto,fecha});
+  if(error){showToast('Error al guardar');return;}
+  document.getElementById('log-texto').value='';
+  showToast('Actividad registrada');
+  showFicha(pid);
+}
+
+async function deleteLog(pid,lid){
+  await sb.from('actividad').delete().eq('id',lid);
+  showFicha(pid);
+}
+
+async function addSig(pid){
+  const texto=document.getElementById('sig-texto').value.trim();
+  if(!texto)return document.getElementById('sig-texto').focus();
+  const fecha=document.getElementById('sig-fecha').value||null;
+  const{error}=await sb.from('siguientes_pasos').insert({proyecto_id:pid,texto,fecha,done:false});
+  if(error){showToast('Error al guardar');return;}
+  document.getElementById('sig-texto').value='';
+  document.getElementById('sig-fecha').value='';
+  showToast('Paso añadido');
+  showFicha(pid);
+}
+
+async function toggleSig(pid,sid,done){
+  await sb.from('siguientes_pasos').update({done:!done}).eq('id',sid);
+  showFicha(pid);
+}
+
+async function deleteSig(pid,sid){
+  await sb.from('siguientes_pasos').delete().eq('id',sid);
+  showFicha(pid);
+}
+
+function openModal(id){
+  editingId=id||null;
+  document.getElementById('modal').classList.remove('hidden');
+  if(id){
+    const p=proyectos.find(x=>x.id===id);
+    document.getElementById('modal-title').textContent='Editar proyecto';
+    document.getElementById('f-cliente').value=p.cliente;
+    document.getElementById('f-fase').value=p.fase;
+    document.getElementById('f-fab').value=p.fabricante||'';
+    document.getElementById('f-sector').value=p.sector||'';
+    document.getElementById('f-importe').value=p.importe||'';
+    document.getElementById('f-pais').value=p.pais||'';
+    document.getElementById('f-ctc').value=p.contacto_nombre||'';
+    document.getElementById('f-cargo').value=p.contacto_cargo||'';
+    document.getElementById('f-email').value=p.contacto_email||'';
+    document.getElementById('f-tel').value=p.contacto_tel||'';
+    document.getElementById('f-accion').value=p.proxima_accion||'';
+    document.getElementById('f-fecha').value=p.proxima_fecha||'';
+    document.getElementById('f-notas').value=p.notas||'';
+  } else {
+    document.getElementById('modal-title').textContent='Nuevo proyecto';
+    ['f-cliente','f-importe','f-pais','f-ctc','f-cargo','f-email','f-tel','f-accion','f-fecha','f-notas'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('f-fase').value='prospecto';
+    document.getElementById('f-fab').selectedIndex=0;
+    document.getElementById('f-sector').selectedIndex=0;
+  }
+}
+
+function closeModal(){document.getElementById('modal').classList.add('hidden');editingId=null;}
+
+async function saveProject(){
+  const cliente=document.getElementById('f-cliente').value.trim();
+  if(!cliente)return document.getElementById('f-cliente').focus();
+  const data={
+    cliente,fase:document.getElementById('f-fase').value,
+    fabricante:document.getElementById('f-fab').value||null,
+    sector:document.getElementById('f-sector').value||null,
+    importe:parseFloat(document.getElementById('f-importe').value)||null,
+    pais:document.getElementById('f-pais').value.trim()||null,
+    contacto_nombre:document.getElementById('f-ctc').value.trim()||null,
+    contacto_cargo:document.getElementById('f-cargo').value.trim()||null,
+    contacto_email:document.getElementById('f-email').value.trim()||null,
+    contacto_tel:document.getElementById('f-tel').value.trim()||null,
+    proxima_accion:document.getElementById('f-accion').value.trim()||null,
+    proxima_fecha:document.getElementById('f-fecha').value||null,
+    notas:document.getElementById('f-notas').value.trim()||null
+  };
+  let error;
+  if(editingId){
+    ({error}=await sb.from('proyectos').update(data).eq('id',editingId));
+  } else {
+    ({error}=await sb.from('proyectos').insert(data));
+  }
+  if(error){showToast('Error al guardar: '+error.message);return;}
+  closeModal();
+  showToast(editingId?'Proyecto actualizado':'Proyecto creado');
+  await loadProyectos();
+  if(editingId&&fichaId===editingId)showFicha(fichaId);
+  else if(!editingId)showView('proyectos');
+}
+
+async function deleteProject(id){
+  if(!confirm('¿Eliminar este proyecto y toda su actividad?'))return;
+  await sb.from('proyectos').delete().eq('id',id);
+  showToast('Proyecto eliminado');
+  await loadProyectos();
+  renderTable();
+}
+
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+loadProyectos();
+</script>
+</body>
+</html>
