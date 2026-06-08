@@ -709,7 +709,15 @@ async function deleteProject(id){
 
 document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
 
-loadProyectos();
+// Exponer funciones al scope global para que el HTML inline pueda llamarlas
+window.doLogin=doLogin;window.doLogout=doLogout;window.showView=showView;
+window.openModal=openModal;window.closeModal=closeModal;window.saveProject=saveProject;
+window.deleteProject=deleteProject;window.showFicha=showFicha;
+window.addLog=addLog;window.deleteLog=deleteLog;
+window.addSig=addSig;window.toggleSig=toggleSig;window.deleteSig=deleteSig;
+window.renderTable=renderTable;window.handleOtroFab=handleOtroFab;window.handleOtroSector=handleOtroSector;
+
+checkSession();
 </script>
 </body>
 </html>
