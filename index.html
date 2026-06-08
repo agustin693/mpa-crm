@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -216,10 +217,26 @@ tr.clickable:hover td{background:#fafaf8;cursor:pointer}
     </div>
     <div class="fg">
       <div class="fr"><label>Fabricante</label>
-        <select id="f-fab"><option value="">—</option><option>Blastman</option><option>CleanLaser</option><option>Nordbo Robotics</option><option>Otro</option></select>
+        <select id="f-fab" onchange="handleOtroFab(this)">
+          <option value="">—</option>
+          <option>Airblast</option><option>Alju</option><option>Blastman</option><option>CleanLaser</option>
+          <option>Electronics</option><option>Gritco</option><option>Guyson</option><option>GVS</option>
+          <option>HPM</option><option>Imerys</option><option>Nordbo Robotics</option><option>Osucas</option>
+          <option>Potters</option><option>Ventherm</option><option>Wagner</option>
+          <option value="__otro__">Otro (especificar)...</option>
+        </select>
+        <input type="text" id="f-fab-otro" placeholder="Escribe el fabricante" style="display:none;margin-top:6px">
       </div>
       <div class="fr"><label>Sector</label>
-        <select id="f-sector"><option value="">—</option><option>Eólico</option><option>Ferroviario</option><option>Automoción</option><option>Naval</option><option>Anticorrosión</option><option>Defensa</option><option>Otro</option></select>
+        <select id="f-sector" onchange="handleOtroSector(this)">
+          <option value="">—</option>
+          <option>Aeronáutica</option><option>Automoción</option><option>Construcción metálica / Calderería</option>
+          <option>Defensa y militar</option><option>Descontaminación nuclear</option><option>Eólica</option>
+          <option>Ferroviaria</option><option>Náutico</option><option>Naval</option><option>Off-shore</option>
+          <option>Restauración y conservación</option>
+          <option value="__otro__">Otro (especificar)...</option>
+        </select>
+        <input type="text" id="f-sector-otro" placeholder="Escribe el sector" style="display:none;margin-top:6px">
       </div>
     </div>
     <div class="fg">
@@ -484,6 +501,43 @@ async function deleteSig(pid,sid){
   showFicha(pid);
 }
 
+function handleOtroFab(sel){
+  const otro=document.getElementById('f-fab-otro');
+  otro.style.display=sel.value==='__otro__'?'block':'none';
+  if(sel.value!=='__otro__')otro.value='';
+}
+function handleOtroSector(sel){
+  const otro=document.getElementById('f-sector-otro');
+  otro.style.display=sel.value==='__otro__'?'block':'none';
+  if(sel.value!=='__otro__')otro.value='';
+}
+function getFab(){
+  const sel=document.getElementById('f-fab');
+  if(sel.value==='__otro__')return document.getElementById('f-fab-otro').value.trim()||null;
+  return sel.value||null;
+}
+function getSector(){
+  const sel=document.getElementById('f-sector');
+  if(sel.value==='__otro__')return document.getElementById('f-sector-otro').value.trim()||null;
+  return sel.value||null;
+}
+function setFab(val){
+  const sel=document.getElementById('f-fab');
+  const otro=document.getElementById('f-fab-otro');
+  const opts=[...sel.options].map(o=>o.value).filter(v=>v&&v!=='__otro__');
+  if(!val){sel.value='';otro.style.display='none';return;}
+  if(opts.includes(val)){sel.value=val;otro.style.display='none';}
+  else{sel.value='__otro__';otro.style.display='block';otro.value=val;}
+}
+function setSector(val){
+  const sel=document.getElementById('f-sector');
+  const otro=document.getElementById('f-sector-otro');
+  const opts=[...sel.options].map(o=>o.value).filter(v=>v&&v!=='__otro__');
+  if(!val){sel.value='';otro.style.display='none';return;}
+  if(opts.includes(val)){sel.value=val;otro.style.display='none';}
+  else{sel.value='__otro__';otro.style.display='block';otro.value=val;}
+}
+
 function openModal(id){
   editingId=id||null;
   document.getElementById('modal').classList.remove('hidden');
@@ -492,8 +546,8 @@ function openModal(id){
     document.getElementById('modal-title').textContent='Editar proyecto';
     document.getElementById('f-cliente').value=p.cliente;
     document.getElementById('f-fase').value=p.fase;
-    document.getElementById('f-fab').value=p.fabricante||'';
-    document.getElementById('f-sector').value=p.sector||'';
+    setFab(p.fabricante||'');
+    setSector(p.sector||'');
     document.getElementById('f-importe').value=p.importe||'';
     document.getElementById('f-pais').value=p.pais||'';
     document.getElementById('f-ctc').value=p.contacto_nombre||'';
@@ -507,8 +561,7 @@ function openModal(id){
     document.getElementById('modal-title').textContent='Nuevo proyecto';
     ['f-cliente','f-importe','f-pais','f-ctc','f-cargo','f-email','f-tel','f-accion','f-fecha','f-notas'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('f-fase').value='prospecto';
-    document.getElementById('f-fab').selectedIndex=0;
-    document.getElementById('f-sector').selectedIndex=0;
+    setFab('');setSector('');
   }
 }
 
@@ -519,8 +572,8 @@ async function saveProject(){
   if(!cliente)return document.getElementById('f-cliente').focus();
   const data={
     cliente,fase:document.getElementById('f-fase').value,
-    fabricante:document.getElementById('f-fab').value||null,
-    sector:document.getElementById('f-sector').value||null,
+    fabricante:getFab(),
+    sector:getSector(),
     importe:parseFloat(document.getElementById('f-importe').value)||null,
     pais:document.getElementById('f-pais').value.trim()||null,
     contacto_nombre:document.getElementById('f-ctc').value.trim()||null,
