@@ -145,7 +145,7 @@ tr.clickable:hover td{background:#fafaf8;cursor:pointer}
     <div style="font-size:13px;color:#888;margin-bottom:1.5rem">Acceso restringido</div>
     <div style="margin-bottom:10px">
       <label style="display:block;font-size:11px;color:#888;margin-bottom:3px">Email</label>
-      <input type="email" id="login-email" placeholder="agustin@mpa.es" style="width:100%;font-size:14px;border:0.5px solid #ccc;border-radius:6px;padding:8px 10px;outline:none">
+      <input type="email" id="login-email" placeholder="Email" style="width:100%;font-size:14px;border:0.5px solid #ccc;border-radius:6px;padding:8px 10px;outline:none">
     </div>
     <div style="margin-bottom:1.25rem">
       <label style="display:block;font-size:11px;color:#888;margin-bottom:3px">Contraseña</label>
@@ -665,11 +665,28 @@ async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
   const password=document.getElementById('login-password').value;
   const err=document.getElementById('login-error');
+  const btn=document.querySelector('#screen-login button');
   err.style.display='none';
   if(!email||!password){err.textContent='Introduce email y contraseña';err.style.display='block';return;}
-  const{error}=await sb.auth.signInWithPassword({email,password});
-  if(error){err.textContent='Email o contraseña incorrectos';err.style.display='block';return;}
-  checkSession();
+  btn.textContent='Entrando...';btn.disabled=true;
+  try{
+    const{data,error}=await sb.auth.signInWithPassword({email,password});
+    if(error){
+      err.textContent='Error: '+error.message;
+      err.style.display='block';
+      btn.textContent='Entrar';btn.disabled=false;
+      return;
+    }
+    if(data.session){
+      document.getElementById('screen-login').style.display='none';
+      document.getElementById('screen-app').style.display='flex';
+      loadProyectos();
+    }
+  }catch(e){
+    err.textContent='Error de conexión: '+e.message;
+    err.style.display='block';
+    btn.textContent='Entrar';btn.disabled=false;
+  }
 }
 
 async function doLogout(){
