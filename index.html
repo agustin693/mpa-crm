@@ -177,6 +177,26 @@ tr.clickable:hover td{background:#fafaf8;cursor:pointer}
 
       <!-- Proyectos lista -->
       <div id="view-proyectos" class="hidden">
+        <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+          <input type="text" id="search-cliente" placeholder="Buscar cliente..." oninput="renderTable()" style="max-width:240px;width:100%">
+          <select id="filter-fase" onchange="renderTable()" style="max-width:180px;width:100%">
+            <option value="">Todas las fases</option>
+            <option value="prospecto">Prospecto</option>
+            <option value="cualificado">Cualificado</option>
+            <option value="propuesta">Propuesta</option>
+            <option value="negociacion">Negociación</option>
+            <option value="ganado">Ganado</option>
+            <option value="perdido">Perdido</option>
+          </select>
+          <select id="filter-fab" onchange="renderTable()" style="max-width:180px;width:100%">
+            <option value="">Todos los fabricantes</option>
+            <option>Airblast</option><option>Alju</option><option>Blastman</option><option>CleanLaser</option>
+            <option>Electronics</option><option>Gritco</option><option>Guyson</option><option>GVS</option>
+            <option>HPM</option><option>Imerys</option><option>Nordbo Robotics</option><option>Osucas</option>
+            <option>Potters</option><option>Ventherm</option><option>Wagner</option>
+          </select>
+          <span id="filter-count" style="font-size:12px;color:#888;margin-left:4px"></span>
+        </div>
         <div class="card">
           <div class="table-wrap">
             <table>
@@ -350,7 +370,22 @@ function renderDashboard(){
 }
 
 function renderTable(){
-  document.getElementById('proj-table').innerHTML=proyectos.map(p=>`
+  const q=(document.getElementById('search-cliente')?.value||'').toLowerCase();
+  const fase=document.getElementById('filter-fase')?.value||'';
+  const fab=document.getElementById('filter-fab')?.value||'';
+  const filtered=proyectos.filter(p=>{
+    if(q&&!p.cliente.toLowerCase().includes(q))return false;
+    if(fase&&p.fase!==fase)return false;
+    if(fab&&p.fabricante!==fab)return false;
+    return true;
+  });
+  const cnt=document.getElementById('filter-count');
+  if(cnt)cnt.textContent=(q||fase||fab)?`${filtered.length} de ${proyectos.length} proyectos`:'';
+  if(filtered.length===0){
+    document.getElementById('proj-table').innerHTML=`<tr><td colspan="8" style="text-align:center;padding:2rem;color:#888;font-size:13px">Sin resultados</td></tr>`;
+    return;
+  }
+  document.getElementById('proj-table').innerHTML=filtered.map(p=>`
     <tr class="clickable" onclick="showFicha(${p.id})">
       <td style="font-weight:500">${p.cliente}</td>
       <td><span class="badge b-${p.fase}">${FASES[p.fase]}</span></td>
